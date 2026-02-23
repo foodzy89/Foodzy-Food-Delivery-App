@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Foodzy - Delivery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- === ONESIGNAL NOTIFICATION SYSTEM === -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "YOUR_ONESIGNAL_APP_ID", // ⚠️ YAHAN APNA ONESIGNAL APP ID DAALEIN
+          notifyButton: {
+            enable: true, // Screen par bell icon show karega
+          },
+          allowLocalhostAsSecureOrigin: true
+        });
+      });
+    </script>
+    <!-- ===================================== -->
+
+    <style>
+        :root {
+            --primary: #E23744; /* Zomato Red */
+            --bg-body: #F4F5F7;
+            --text-main: #1C1C1C;
+            --text-light: #696969;
+            --green: #257E3E;
+            --blue-tag: #1A5EEE;
+            --white: #ffffff;
+            --shadow-card: 0px 3px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-body); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* --- UTILS --- */
+        .flex { display: flex; align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .hidden { display: none !important; }
+        .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* --- LOADING --- */
+        #loading-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9000; display:flex; justify-content:center; align-items:center; flex-direction:column;}
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- SPLASH SCREEN --- */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        .app-logo { font-size: 3.5rem; font-weight: 900; font-style: italic; color: white; letter-spacing: -2px; }
+
+        /* --- MAIN LAYOUT --- */
+        #app-container { flex: 1; overflow-y: auto; padding-bottom: 100px; scroll-behavior: smooth; }
+
+        /* Header */
+        header { background: white; padding: 12px 15px; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,0.02); }
+        .location-header { display: flex; align-items: flex-start; gap: 8px; max-width: 80%; }
+        .loc-icon { color: var(--primary); font-size: 1.4rem; margin-top: 2px; }
+        .loc-text h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 5px; }
+        .loc-text p { font-size: 0.8rem; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
+        .profile-btn { width: 38px; height: 38px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #333; }
+
+        /* Search Bar */
+        .search-wrapper { padding: 10px 15px; background: white; }
+        .search-bar { background: white; border: 1px solid #E8E8E8; border-radius: 10px; padding: 12px 15px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); color: var(--text-light); }
+        
+        /* Categories */
+        .section-title { font-weight: 700; font-size: 1.1rem; padding: 20px 15px 10px; text-transform: uppercase; letter-spacing: 1px; color: #333; }
+        
+        /* Restaurant List */
+        .res-container { background: var(--bg-body); padding: 0 15px; }
+        .res-card { background: white; border-radius: 16px; margin-bottom: 20px; overflow: hidden; box-shadow: var(--shadow-card); position: relative; cursor: pointer;}
+        .res-hero { height: 190px; width: 100%; position: relative; }
+        .res-hero img { width: 100%; height: 100%; object-fit: cover; }
+        .res-promoted { position: absolute; top: 15px; left: 0; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; font-size: 0.65rem; border-radius: 0 4px 4px 0; text-transform: uppercase; }
+        .res-time { position: absolute; bottom: 15px; right: 15px; background: rgba(255,255,255,0.9); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+        .res-off { position: absolute; bottom: 15px; left: 0; background: var(--blue-tag); color: white; padding: 2px 8px; font-size: 0.75rem; font-weight: 700; border-radius: 0 4px 4px 0; }
+        
+        .res-content { padding: 12px; }
+        .res-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .res-title { font-size: 1.25rem; font-weight: 700; color: #1C1C1C; }
+        .rating-box { background: var(--green); color: white; padding: 2px 6px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 2px; }
+        .res-meta { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-light); }
+        .res-footer { border-top: 1px solid #F0F0F0; padding: 10px 12px; display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #828282; }
+
+        /* --- PAGES (TABS) --- */
+        .page-view { display: none; }
+        .page-view.active { display: block; }
+        
+        /* Cart Page */
+        #cart-page { padding: 20px; text-align: center; }
+        .cart-item-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px dashed #ccc; }
+        .cart-summary { background: white; padding: 20px; border-radius: 12px; margin-top: 20px; text-align: left; }
+
+        /* Account Page */
+        #account-page { padding: 20px; }
+        .acc-header { text-align: center; margin-bottom: 30px; }
+        .acc-avatar { width: 80px; height: 80px; background: #ddd; border-radius: 50%; margin: 0 auto 10px; background-image: url('https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg'); background-size:cover;}
+        .acc-option { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* --- MENU OVERLAY --- */
+        #menu-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; overflow-y: auto; padding-bottom: 80px; }
+        .menu-nav { position: sticky; top: 0; background: white; z-index: 10; padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .menu-list { padding: 0 15px; }
+        .menu-item { display: flex; justify-content: space-between; padding: 25px 0; border-bottom: 1px dotted #ccc; }
+        
+        .item-info { flex: 1; padding-right: 15px; }
+        .veg-icon, .nonveg-icon { width: 16px; height: 16px; border: 1px solid; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
+        .veg-icon { border-color: var(--green); } .veg-icon div { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+        .nonveg-icon { border-color: var(--primary); } .nonveg-icon div { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
+        
+        .item-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 2px; color: #333; }
+        .item-price { font-size: 0.95rem; color: #333; font-weight: 500; }
+        .item-desc { font-size: 0.8rem; color: #888; margin-top: 8px; line-height: 1.4; }
+        
+        .item-action { position: relative; width: 130px; height: 120px; }
+        .item-img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+        .add-btn-container { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 100px; height: 36px; }
+        
+        /* Buttons */
+        .btn-add { background: #FFF0F1; border: 1px solid var(--primary); color: var(--primary); width: 100%; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-counter { background: var(--primary); color: white; width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-weight: 700; }
+        .btn-place-order { width: 100%; background: var(--primary); color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 700; margin-top: 20px; cursor: pointer; }
+        .btn-main { background: var(--primary); color: white; width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; }
+
+        /* --- LOGIN SCREEN --- */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 8000; padding: 25px; display: none; flex-direction: column; }
+        .login-header { width: 100%; height: 250px; background: url('https://b.zmtcdn.com/web_assets/81f3ff974d82520780078ba1cfbd453a1583259680.png') center/cover; margin: -25px -25px 30px -25px; border-radius: 0 0 20px 20px; }
+        .inp-box { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; font-size: 1rem; }
+
+        /* --- FLOATING CART --- */
+        .float-cart { position: fixed; bottom: 85px; left: 15px; right: 15px; background: #111; color: white; border-radius: 8px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 500; display: none; cursor: pointer; animation: slideUp 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+
+        /* --- BOTTOM NAV --- */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 70px; background: white; border-top: 1px solid #F0F0F0; display: flex; justify-content: space-around; align-items: center; z-index: 800; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9C9C9C; font-size: 1.4rem; cursor: pointer; }
+        .nav-item span { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px; }
+        .nav-item.active { color: var(--primary); }
+
+        /* --- ANIMATIONS --- */
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="app-logo">foodzy</div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <p style="margin-top:10px; font-size:0.9rem; color:#666;">Fetching fresh food...</p>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-header"></div>
+        <h2 style="text-align:center; margin-bottom:10px;">India's #1 Food Delivery App</h2>
+        <div style="display:flex; align-items:center; gap:10px; margin:20px 0;">
+            <div style="height:1px; background:#ddd; flex:1;"></div>
+            <span style="color:#888; font-size:0.8rem;">Log in or Sign up</span>
+            <div style="height:1px; background:#ddd; flex:1;"></div>
+        </div>
+        <input type="tel" class="inp-box" id="login-phone" placeholder="+91  Enter Phone Number">
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 0.9rem; color: #666;">
+            <input type="checkbox" id="remember-me" checked style="width: 18px; height: 18px; accent-color: var(--primary);">
+            <label for="remember-me">Keep me logged in</label>
+        </div>
+
+        <button class="btn-main" onclick="handleLogin()">Continue</button>
+    </div>
+
+    <!-- Main Container -->
+    <div id="app-container">
+        
+        <!-- PAGE: HOME -->
+        <div id="home-page" class="page-view active">
+            <header>
+                <div class="justify-between flex">
+                    <div class="location-header">
+                        <i class="fas fa-map-marker-alt loc-icon"></i>
+                        <div class="loc-text">
+                            <h3>Home <i class="fas fa-chevron-down" style="font-size:0.8rem"></i></h3>
+                            <p>401, Galaxy Apts, Mumbai</p>
+                        </div>
+                    </div>
+                    <div class="profile-btn"><i class="fas fa-user"></i></div>
+                </div>
+            </header>
+
+            <div class="search-wrapper">
+                <div class="search-bar">
+                    <i class="fas fa-search" style="color:#E23744"></i>
+                    <span>Restaurant name, cuisine...</span>
+                </div>
+            </div>
+
+            <div class="res-container">
+                <div class="section-title" style="padding-left:0;">Restaurants around you</div>
+                <div id="res-list"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: MY CART -->
+        <div id="cart-page" class="page-view">
+            <h2 style="text-align:left; margin-bottom:20px;">My Cart</h2>
+            <div id="cart-items-container">
+                <!-- JS Filled -->
+            </div>
+            <div id="cart-summary" class="cart-summary" style="display:none;">
+                <div class="flex justify-between" style="margin-bottom:10px;">
+                    <span>Item Total</span>
+                    <span id="bill-total">₹0</span>
+                </div>
+                <div class="flex justify-between" style="margin-bottom:10px; color:#257E3E;">
+                    <span>Delivery Fee</span>
+                    <span>FREE</span>
+                </div>
+                <div style="border-top:1px dashed #ccc; margin:10px 0;"></div>
+                <div class="flex justify-between" style="font-weight:700; font-size:1.1rem;">
+                    <span>To Pay</span>
+                    <span id="bill-final">₹0</span>
+                </div>
+                <button class="btn-place-order" onclick="placeOrder()">Place Order</button>
+            </div>
+            <div id="empty-cart-msg" style="margin-top:50px; color:#999;">
+                <i class="fas fa-shopping-basket" style="font-size:3rem; margin-bottom:15px;"></i>
+                <p>Your cart is empty</p>
+            </div>
+        </div>
+
+        <!-- PAGE: ACCOUNT -->
+        <div id="account-page" class="page-view">
+            <div class="acc-header">
+                <div class="acc-avatar"></div>
+                <h2>Guest User</h2>
+                <p style="color:#666;">Welcome to Foodzy</p>
+            </div>
+            <div class="acc-option">
+                <span><i class="fas fa-receipt" style="margin-right:10px; color:#666;"></i> Your Orders</span>
+                <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+            </div>
+            <div class="acc-option">
+                <span><i class="fas fa-heart" style="margin-right:10px; color:#666;"></i> Favorite Restaurants</span>
+                <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+            </div>
+            <div class="acc-option">
+                <span><i class="fas fa-map-marker-alt" style="margin-right:10px; color:#666;"></i> Address Book</span>
+                <i class="fas fa-chevron-right" style="color:#ccc;"></i>
+            </div>
+            <div class="acc-option" style="margin-top:20px; cursor:pointer;" onclick="logout()">
+                <span style="color:red;"><i class="fas fa-sign-out-alt" style="margin-right:10px;"></i> Log Out</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Menu Overlay -->
+    <div id="menu-view">
+        <div class="menu-nav">
+            <i class="fas fa-arrow-left" style="font-size:1.2rem; cursor:pointer;" onclick="closeMenu()"></i>
+            <div style="text-align:center;">
+                <h3 id="menu-title">Restaurant</h3>
+                <span style="font-size:0.7rem; color:#666;">Menu</span>
+            </div>
+            <i class="fas fa-ellipsis-v"></i>
+        </div>
+        <div id="menu-items-container" class="menu-list"></div>
+    </div>
+
+    <!-- Floating Cart on Menu -->
+    <div id="cart-bar" class="float-cart" onclick="showPage('cart')">
+        <div>
+            <div style="font-weight:700; font-size:0.9rem;" id="cart-count">0 ITEMS</div>
+            <div style="font-size:0.7rem; opacity:0.8;">Plus taxes</div>
+        </div>
+        <div style="font-size:0.9rem; font-weight:700;">View Cart <i class="fas fa-caret-right"></i></div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="showPage('home')"><i class="fas fa-home"></i><span>Home</span></div>
+        <div class="nav-item" onclick="showPage('cart')"><i class="fas fa-shopping-cart"></i><span>My Cart</span></div>
+        <div class="nav-item" onclick="showPage('account')"><i class="fas fa-user"></i><span>Account</span></div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4UXVYX8vnKObcyE7LOkYb4TU0132m7pQ4ewCMJYP9SRKof9XDtHvA2jRfJ-edyU8l0Q/exec'; // ⚠️ PASTE YOUR GOOGLE SCRIPT URL HERE
+
+        // --- STATE ---
+        let restaurants = [];
+        let menuItems = [];
+        let cart = {}; 
+
+        // --- INIT ---
+        window.onload = function() {
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splash-screen').style.display = 'none';
+                    checkLoginStatus();
+                }, 500);
+            }, 2000);
+        }
+
+        // --- LOGIN & ONESIGNAL LOGIC ---
+        function checkLoginStatus() {
+            if(localStorage.getItem('foodzy_logged_in') === 'true') {
+                proceedToApp();
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+        }
+
+        function handleLogin() {
+            if(document.getElementById('remember-me').checked) {
+                localStorage.setItem('foodzy_logged_in', 'true');
+            }
+            document.getElementById('login-screen').style.display = 'none';
+            
+            // Trigger OneSignal Prompt after user interaction (Login)
+            OneSignalDeferred.push(function(OneSignal) {
+                OneSignal.Slidedown.promptPush();
+            });
+
+            proceedToApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('foodzy_logged_in');
+            cart = {}; // Empty cart
+            location.reload(); // Refresh to show login screen
+        }
+
+        function proceedToApp() {
+            if(SCRIPT_URL === 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+                alert("Setup Required: Please paste your Google Apps Script URL in the HTML code.");
+                document.getElementById('loading-screen').style.display = 'none';
+            } else {
+                document.getElementById('loading-screen').style.display = 'flex';
+                fetchData();
+            }
+        }
+
+        // --- API CALLS (Google Sheets) ---
+        function fetchData() {
+            // Fetch Restaurants
+            fetch(SCRIPT_URL + '?action=getRestaurants')
+                .then(r => r.json())
+                .then(data => {
+                    restaurants = data;
+                    renderRestaurants();
+                })
+                .catch(err => console.error("Error loading restaurants", err));
+
+            // Fetch Menu
+            fetch(SCRIPT_URL + '?action=getMenu')
+                .then(r => r.json())
+                .then(data => {
+                    menuItems = data;
+                    document.getElementById('loading-screen').style.display = 'none';
+                })
+                .catch(err => {
+                    console.error("Error loading menu", err);
+                    document.getElementById('loading-screen').style.display = 'none';
+                });
+        }
+
+        function placeOrder() {
+            if(Object.keys(cart).length === 0) return;
+            
+            document.getElementById('loading-screen').style.display = 'flex';
+            const totalAmount = document.getElementById('bill-final').innerText;
+            
+            const orderData = {
+                cart: cart,
+                total: totalAmount
+            };
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(orderData)
+            })
+            .then(r => r.json())
+            .then(res => {
+                document.getElementById('loading-screen').style.display = 'none';
+                if(res.status === 'success') {
+                    // Send notification tag if OneSignal is active
+                    OneSignalDeferred.push(function(OneSignal) {
+                        OneSignal.User.addTag("last_order", new Date().toISOString());
+                    });
+
+                    alert("🎉 Order Placed Successfully!");
+                    cart = {};
+                    updateCartUI();
+                    showPage('home');
+                }
+            })
+            .catch(e => {
+                alert("Error placing order. Please try again.");
+                document.getElementById('loading-screen').style.display = 'none';
+            });
+        }
+
+        // --- RENDER ---
+        function renderRestaurants() {
+            if(restaurants.length === 0) {
+                document.getElementById('res-list').innerHTML = "<p style='text-align:center; padding:20px; color:#666;'>No restaurants found in database.</p>";
+                return;
+            }
+            document.getElementById('res-list').innerHTML = restaurants.map(res => `
+                <div class="res-card" onclick="openMenu(${res.id})">
+                    <div class="res-hero">
+                        <img src="${res.image || 'https://via.placeholder.com/400x200'}">
+                        <div class="res-promoted">Promoted</div>
+                        <div class="res-off">${res.offer || 'Best Price'}</div>
+                        <div class="res-time">${res.time || '30 min'}</div>
+                    </div>
+                    <div class="res-content">
+                        <div class="res-header">
+                            <div class="res-title">${res.name}</div>
+                            <div class="rating-box">${res.rating} <i class="fas fa-star" style="font-size:0.6rem"></i></div>
+                        </div>
+                        <div class="res-meta">
+                            <span class="text-truncate" style="max-width:60%">${res.cuisine}</span>
+                            <span>${res.price}</span>
+                        </div>
+                    </div>
+                    <div class="res-footer">
+                        <img src="https://b.zmtcdn.com/data/o2_assets/4bf016f32f05d26242cea342f30d47a31595763089.png" width="18">
+                        Follows all Max Safety measures
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openMenu(resId) {
+            const res = restaurants.find(r => r.id == resId);
+            const items = menuItems.filter(m => m.restaurant_id == resId);
+            
+            document.getElementById('menu-title').innerText = res.name;
+            document.getElementById('menu-items-container').innerHTML = items.map(item => getMenuItemHTML(item)).join('');
+            document.getElementById('menu-view').style.display = 'block';
+            updateCartUI();
+        }
+
+        function getMenuItemHTML(item) {
+            const qty = cart[item.id] || 0;
+            return `
+            <div class="menu-item">
+                <div class="item-info">
+                    <div class="${item.veg?'veg-icon':'nonveg-icon'}"><div></div></div>
+                    <div class="item-title">${item.name}</div>
+                    <div class="item-price">₹${item.price}</div>
+                    <div class="item-desc">${item.desc || ''}</div>
+                </div>
+                <div class="item-action">
+                    <img src="${item.image || 'https://via.placeholder.com/150'}" class="item-img">
+                    <div class="add-btn-container" id="btn-container-${item.id}">
+                        ${qty === 0 
+                            ? `<div class="btn-add" onclick="updateCart(${item.id}, 1)">ADD</div>`
+                            : `<div class="btn-counter"><span onclick="updateCart(${item.id}, -1)">-</span><span>${qty}</span><span onclick="updateCart(${item.id}, 1)">+</span></div>`
+                        }
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // --- NAVIGATION ---
+        function showPage(pageId) {
+            closeMenu();
+            document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+            document.getElementById(`${pageId}-page`).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const icons = {'home':0, 'cart':1, 'account':2};
+            document.querySelectorAll('.nav-item')[icons[pageId]].classList.add('active');
+
+            if(pageId === 'cart') renderCartPage();
+        }
+
+        function closeMenu() { document.getElementById('menu-view').style.display = 'none'; }
+
+        // --- CART LOGIC ---
+        function updateCart(itemId, change) {
+            if(!cart[itemId]) cart[itemId] = 0;
+            cart[itemId] += change;
+            if(cart[itemId] <= 0) delete cart[itemId];
+            
+            // Re-render button logic if in menu
+            const container = document.getElementById(`btn-container-${itemId}`);
+            if(container) {
+                const qty = cart[itemId] || 0;
+                if(qty === 0) {
+                    container.innerHTML = `<div class="btn-add" onclick="updateCart(${itemId}, 1)">ADD</div>`;
+                } else {
+                    container.innerHTML = `<div class="btn-counter"><span onclick="updateCart(${itemId}, -1)">-</span><span>${qty}</span><span onclick="updateCart(${itemId}, 1)">+</span></div>`;
+                }
+            }
+            
+            updateCartUI();
+            if(document.getElementById('cart-page').classList.contains('active')) renderCartPage();
+        }
+
+        function updateCartUI() {
+            let totalQty = 0;
+            let totalPrice = 0;
+            
+            for(let id in cart) {
+                let item = menuItems.find(m => m.id == id);
+                if(item) {
+                    totalQty += cart[id];
+                    totalPrice += item.price * cart[id];
+                }
+            }
+
+            const bar = document.getElementById('cart-bar');
+            if(totalQty > 0) {
+                bar.style.display = 'flex';
+                document.getElementById('cart-count').innerText = `${totalQty} ITEM${totalQty>1?'S':''} | ₹${totalPrice}`;
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function renderCartPage() {
+            const container = document.getElementById('cart-items-container');
+            const summary = document.getElementById('cart-summary');
+            const empty = document.getElementById('empty-cart-msg');
+            
+            if(Object.keys(cart).length === 0) {
+                container.innerHTML = "";
+                summary.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            empty.style.display = 'none';
+            summary.style.display = 'block';
+            let html = "";
+            let total = 0;
+
+            for(let id in cart) {
+                let item = menuItems.find(m => m.id == id);
+                if(item) {
+                    let cost = item.price * cart[id];
+                    total += cost;
+                    html += `
+                    <div class="cart-item-row">
+                        <div style="flex:1">
+                            <div class="${item.veg?'veg-icon':'nonveg-icon'}" style="margin:0"><div></div></div>
+                            <div style="font-weight:600; font-size:0.9rem;">${item.name}</div>
+                            <div style="font-size:0.8rem; color:#666;">₹${item.price}</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="btn-counter" style="width:80px; height:30px;">
+                                <span onclick="updateCart(${item.id}, -1)">-</span>
+                                <span>${cart[id]}</span>
+                                <span onclick="updateCart(${item.id}, 1)">+</span>
+                            </div>
+                            <div style="font-weight:600; width:50px; text-align:right;">₹${cost}</div>
+                        </div>
+                    </div>`;
+                }
+            }
+            
+            container.innerHTML = html;
+            document.getElementById('bill-total').innerText = '₹' + total;
+            document.getElementById('bill-final').innerText = '₹' + total;
+        }
+
+    </script>
+</body>
+</html>
