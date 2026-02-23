@@ -8,22 +8,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- === ONESIGNAL NOTIFICATION SYSTEM === -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
         await OneSignal.init({
-          appId: "a4685cd8-b583-496c-aa13-2bf7e37db099", // ⚠️ YAHAN APNA ONESIGNAL APP ID DAALEIN
-            path: "/Foodzy-Food-Delivery-App/", //
+          appId: "a4685cd8-b583-496c-aa13-2bf7e37db099", // ⚠️ Yahan apna App ID daalna mat bhoolna
+          serviceWorkerParam: { scope: "/Foodzy-Food-Delivery-App/" },
+          serviceWorkerPath: "/Foodzy-Food-Delivery-App/OneSignalSDKWorker.js",
           notifyButton: {
-            enable: true, // Screen par bell icon show karega
-          },
-          allowLocalhostAsSecureOrigin: true
+            enable: true,
+          }
         });
-      });
-    </script>
+         // Yeh line website khulte hi automatic permission maangegi
+        OneSignal.Slidedown.promptPush({ force: true });
+      }); </script>
     <!-- ===================================== -->
-
+```
     <style>
         :root {
             --primary: #E23744; /* Zomato Red */
